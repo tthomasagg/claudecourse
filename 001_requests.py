@@ -1,3 +1,4 @@
+import os
 from dotenv import load_dotenv
 from anthropic import Anthropic
 import argparse
@@ -10,7 +11,7 @@ args = parser.parse_args()
 
 
 client = Anthropic()
-model = args.model if args.model else "claude-haiku-4-5"
+model = args.model if args.model else os.getenv("DEFAULT_CLAUDE_MODEL")
 
 def add_user_message(messages, text):
 	user_message = {"role": "user", "content": text}
@@ -19,6 +20,7 @@ def add_user_message(messages, text):
 def add_assistant_message(messages, text):
 	assistant_message = {"role": "assistant", "content": text}
 	messages.append(assistant_message)
+
 # temperature lesson
 # 0.8 - 1.0 high temperature
 # - brainstorming
