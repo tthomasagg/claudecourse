@@ -5,8 +5,12 @@ import argparse
 
 load_dotenv()
 
+DEFAULT_TEMPERATURE = 0.5
+DEFAULT_MAX_TOKENS = 1000
+
 parser = argparse.ArgumentParser(description="Simple Claude API-based AI chatbot")
 parser.add_argument("--model", type=str, required=False, help="Claude model to use")
+parser.add_argument("--response-mode", type=str, required=False, help="Claude response mode. [stream | sync]. Default = stream", default="stream")
 args = parser.parse_args()
 
 
@@ -20,6 +24,19 @@ def add_user_message(messages, text):
 def add_assistant_message(messages, text):
 	assistant_message = {"role": "assistant", "content": text}
 	messages.append(assistant_message)
+
+def build_chat_params(msg_history, system=None, chat_model=model, max_tokens=DEFAULT_MAX_TOKENS, temperature=DEFAULT_TEMPERATURE):
+	params = {
+		"messages": msg_history,
+		"model": chat_model,
+		"max_tokens": max_tokens,
+		"temperature": temperature
+	}
+
+	if system:
+		params["system"] = system
+
+	return params
 
 # temperature lesson
 # 0.8 - 1.0 high temperature
@@ -37,21 +54,24 @@ def add_assistant_message(messages, text):
 # - coding assistance
 # - data extraction
 # - content moderation
-def chat(messages, system=None, temperature=0.5):
+def chat(msg_history, system=None, temperature=DEFAULT_TEMPERATURE, response_mode=args.response_mode):
 
-	params = {
-		"model": model,
-		"max_tokens": 1000,
-		"messages": messages,
-		"temperature": temperature
-	}
+	params = build_chat_params(msg_history, system, model, DEFAULT_MAX_TOKENS, temperature)
 
-	if system:
-		params["system"] = system
+	if args.response_mode == "sync":
+		response = client.messages.create(**params)
+		print(response.content[0].text)
+	else:
+		with client.messages.stream(
+				**params
+		) as stream:
+			for text in stream.text_stream:
+				print(text, end="")
+		response = stream.get_final_message()
 
-	message = client.messages.create(**params)
+	print("\n")
 
-	return message.content[0].text
+	return response.content[0].text
 
 messages = []
 
@@ -62,4 +82,3 @@ while True:
 	#answer = chat(messages, "Act as a code generator. When writing code: don't comment on every line; Don't provide alternatives; don't provide usage examples; Just output code as if you were writing directly to the interpreter")
 	answer = chat(messages)
 	add_assistant_message(messages, answer)
-	print(answer + "\n")
